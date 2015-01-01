@@ -15,20 +15,21 @@
  *******************************************************************************/
 package com.nostra13.universalimageloader.core.decode;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BitmapFactory.Options;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
+
 import com.nostra13.universalimageloader.core.assist.ImageScaleType;
 import com.nostra13.universalimageloader.core.assist.ImageSize;
 import com.nostra13.universalimageloader.core.download.ImageDownloader.Scheme;
 import com.nostra13.universalimageloader.utils.ImageSizeUtils;
 import com.nostra13.universalimageloader.utils.IoUtils;
 import com.nostra13.universalimageloader.utils.L;
-
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * Decodes images to {@link Bitmap}, scales them to needed size
@@ -44,6 +45,7 @@ public class BaseImageDecoder implements ImageDecoder {
 	protected static final String LOG_ROTATE_IMAGE = "Rotate image on %1$d\u00B0 [%2$s]";
 	protected static final String LOG_FLIP_IMAGE = "Flip image horizontally [%s]";
 	protected static final String ERROR_CANT_DECODE_IMAGE = "Image can't be decoded [%s]";
+
 
 	protected final boolean loggingEnabled;
 
@@ -88,11 +90,12 @@ public class BaseImageDecoder implements ImageDecoder {
 		}
 		return decodedBitmap;
 	}
+	
 
 	protected InputStream getImageStream(ImageDecodingInfo decodingInfo) throws IOException {
 		return decodingInfo.getDownloader().getStream(decodingInfo.getImageUri(), decodingInfo.getExtraForDownloader());
 	}
-
+	
 	protected ImageFileInfo defineImageSizeAndRotation(InputStream imageStream, ImageDecodingInfo decodingInfo)
 			throws IOException {
 		Options options = new Options();

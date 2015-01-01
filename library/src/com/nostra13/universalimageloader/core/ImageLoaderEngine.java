@@ -80,6 +80,22 @@ class ImageLoaderEngine {
 			}
 		});
 	}
+	
+	void submit(final LoadAndDisplayImageFromSearchRequestTask task) {
+		taskDistributor.execute(new Runnable() {
+			@Override
+			public void run() {
+				File image = configuration.diskCache.get(task.getLoadingUri());
+				boolean isImageCachedOnDisk = image != null && image.exists();
+				initExecutorsIfNeed();
+				if (isImageCachedOnDisk) {
+					taskExecutorForCachedImages.execute(task);
+				} else {
+					taskExecutor.execute(task);
+				}
+			}
+		});
+	}
 
 	/** Submits task to execution pool */
 	void submit(ProcessAndDisplayImageTask task) {

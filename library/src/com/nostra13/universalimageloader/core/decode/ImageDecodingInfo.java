@@ -101,7 +101,7 @@ public class ImageDecodingInfo {
 	public String getImageUri() {
 		return imageUri;
 	}
-
+	
 	/** @return The original image URI which was passed to ImageLoader */
 	public String getOriginalImageUri() {
 		return originalImageUri;

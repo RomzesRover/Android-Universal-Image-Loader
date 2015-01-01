@@ -18,6 +18,7 @@ package com.nostra13.universalimageloader.core;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLDecoder;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -235,6 +236,7 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 				
 				doc = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get();
 				String imageUriForDecoding = doc.getElementsByClass("rg_di").first().select("a").attr("href").substring(doc.getElementsByClass("rg_di").first().select("a").attr("href").indexOf("=")+1, doc.getElementsByClass("rg_di").first().select("a").attr("href").indexOf("&"));
+				imageUriForDecoding = URLDecoder.decode(URLDecoder.decode(URLDecoder.decode(imageUriForDecoding, "UTF-8")));
 				if (options.isCacheOnDisk() && tryCacheImageOnDisk(imageUriForDecoding)) {
 					imageFile = configuration.diskCache.get(uri);
 					if (imageFile != null) {

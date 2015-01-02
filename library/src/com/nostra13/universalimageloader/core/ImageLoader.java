@@ -518,6 +518,12 @@ public class ImageLoader {
 			ImageLoadingListener listener) {
 		loadImage(uri, targetImageSize, options, listener, null);
 	}
+	
+	public void loadImageFromSearchRequest(String uri, ImageSize targetImageSize, DisplayImageOptions options,
+			ImageLoadingListener listener) {
+		loadImageFromSearchRequest(uri, targetImageSize, options, listener, null);
+	}
+	
 
 	/**
 	 * Adds load image task to execution pool. Image will be returned with
@@ -557,6 +563,20 @@ public class ImageLoader {
 		NonViewAware imageAware = new NonViewAware(uri, targetImageSize, ViewScaleType.CROP);
 		displayImage(uri, imageAware, options, listener, progressListener);
 	}
+	
+	public void loadImageFromSearchRequest(String uri, ImageSize targetImageSize, DisplayImageOptions options,
+			ImageLoadingListener listener, ImageLoadingProgressListener progressListener) {
+		checkConfiguration();
+		if (targetImageSize == null) {
+			targetImageSize = configuration.getMaxImageSize();
+		}
+		if (options == null) {
+			options = configuration.defaultDisplayImageOptions;
+		}
+
+		NonViewAware imageAware = new NonViewAware(uri, targetImageSize, ViewScaleType.CROP);
+		displayImageFromSearchRequest(uri, imageAware, options, listener, progressListener);
+	}
 
 	/**
 	 * Loads and decodes image synchronously.<br />
@@ -571,6 +591,13 @@ public class ImageLoader {
 	 */
 	public Bitmap loadImageSync(String uri) {
 		return loadImageSync(uri, null, null);
+	}
+	
+	public Bitmap loadImageSync(String uri, boolean isSearchRequest) {
+		if (isSearchRequest)
+			return loadImageSyncFromSearchRequest(uri, null, null);
+		else 
+			return loadImageSync(uri, null, null);
 	}
 
 	/**
@@ -587,6 +614,13 @@ public class ImageLoader {
 	 */
 	public Bitmap loadImageSync(String uri, DisplayImageOptions options) {
 		return loadImageSync(uri, null, options);
+	}
+	
+	public Bitmap loadImageSync(String uri, DisplayImageOptions options, boolean isSearchRequest) {
+		if (isSearchRequest)
+			return loadImageSyncFromSearchRequest(uri, null, options);
+		else 
+			return loadImageSync(uri, null, options);
 	}
 
 	/**
@@ -630,6 +664,17 @@ public class ImageLoader {
 
 		SyncImageLoadingListener listener = new SyncImageLoadingListener();
 		loadImage(uri, targetImageSize, options, listener);
+		return listener.getLoadedBitmap();
+	}
+	
+	public Bitmap loadImageSyncFromSearchRequest(String uri, ImageSize targetImageSize, DisplayImageOptions options) {
+		if (options == null) {
+			options = configuration.defaultDisplayImageOptions;
+		}
+		options = new DisplayImageOptions.Builder().cloneFrom(options).syncLoading(true).build();
+
+		SyncImageLoadingListener listener = new SyncImageLoadingListener();
+		loadImageFromSearchRequest(uri, targetImageSize, options, listener);
 		return listener.getLoadedBitmap();
 	}
 

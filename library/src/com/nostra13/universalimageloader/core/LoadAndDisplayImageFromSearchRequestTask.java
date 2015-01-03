@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -220,7 +219,6 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 
 	private Bitmap tryLoadBitmap() throws TaskCancelledException {
 		Bitmap bitmap = null;
-		Document doc;
 		try {
 			File imageFile = configuration.diskCache.get(uri);
 			if (imageFile != null && imageFile.exists()) {
@@ -234,8 +232,9 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 				L.d(LOG_LOAD_IMAGE_FROM_NETWORK, memoryCacheKey);
 				loadedFrom = LoadedFrom.NETWORK;
 				
-				doc = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get();
-				String imageUriForDecoding = doc.getElementsByClass("rg_di").first().select("a").attr("href").substring(doc.getElementsByClass("rg_di").first().select("a").attr("href").indexOf("=")+1, doc.getElementsByClass("rg_di").first().select("a").attr("href").indexOf("&"));
+				String imageUriForDecoding = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get().getElementsByClass("rg_di").first().select("a").attr("href");
+				imageUriForDecoding = imageUriForDecoding.substring(imageUriForDecoding.indexOf("=")+1, imageUriForDecoding.indexOf("&"));
+				
 				imageUriForDecoding = URLDecoder.decode(URLDecoder.decode(URLDecoder.decode(imageUriForDecoding, "UTF-8")));
 				if (options.isCacheOnDisk() && tryCacheImageOnDisk(imageUriForDecoding)) {
 					imageFile = configuration.diskCache.get(uri);

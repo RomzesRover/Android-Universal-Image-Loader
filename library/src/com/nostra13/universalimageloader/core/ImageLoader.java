@@ -21,6 +21,7 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ImageView;
+
 import com.nostra13.universalimageloader.cache.disc.DiskCache;
 import com.nostra13.universalimageloader.cache.memory.MemoryCache;
 import com.nostra13.universalimageloader.core.assist.FailReason;
@@ -338,6 +339,74 @@ public class ImageLoader {
 			}
 		}
 	}
+	
+	public void displayImageFromExistingMP3File(String uri, ImageAware imageAware, DisplayImageOptions options,
+			ImageLoadingListener listener, ImageLoadingProgressListener progressListener) {
+		checkConfiguration();
+		if (imageAware == null) {
+			throw new IllegalArgumentException(ERROR_WRONG_ARGUMENTS);
+		}
+		if (listener == null) {
+			listener = emptyListener;
+		}
+		if (options == null) {
+			options = configuration.defaultDisplayImageOptions;
+		}
+
+		if (TextUtils.isEmpty(uri)) {
+			engine.cancelDisplayTaskFor(imageAware);
+			listener.onLoadingStarted(uri, imageAware.getWrappedView());
+			if (options.shouldShowImageForEmptyUri()) {
+				imageAware.setImageDrawable(options.getImageForEmptyUri(configuration.resources));
+			} else {
+				imageAware.setImageDrawable(null);
+			}
+			listener.onLoadingComplete(uri, imageAware.getWrappedView(), null);
+			return;
+		}
+
+		ImageSize targetSize = ImageSizeUtils.defineTargetSizeForView(imageAware, configuration.getMaxImageSize());
+		String memoryCacheKey = MemoryCacheUtils.generateKey(uri, targetSize);
+		engine.prepareDisplayTaskFor(imageAware, memoryCacheKey);
+
+		listener.onLoadingStarted(uri, imageAware.getWrappedView());
+
+		Bitmap bmp = configuration.memoryCache.get(memoryCacheKey);
+		if (bmp != null && !bmp.isRecycled()) {
+			L.d(LOG_LOAD_IMAGE_FROM_MEMORY_CACHE, memoryCacheKey);
+
+			if (options.shouldPostProcess()) {
+				ImageLoadingInfo imageLoadingInfo = new ImageLoadingInfo(uri, imageAware, targetSize, memoryCacheKey,
+						options, listener, progressListener, engine.getLockForUri(uri));
+				ProcessAndDisplayImageTask displayTask = new ProcessAndDisplayImageTask(engine, bmp, imageLoadingInfo,
+						defineHandler(options));
+				if (options.isSyncLoading()) {
+					displayTask.run();
+				} else {
+					engine.submit(displayTask);
+				}
+			} else {
+				options.getDisplayer().display(bmp, imageAware, LoadedFrom.MEMORY_CACHE);
+				listener.onLoadingComplete(uri, imageAware.getWrappedView(), bmp);
+			}
+		} else {
+			if (options.shouldShowImageOnLoading()) {
+				imageAware.setImageDrawable(options.getImageOnLoading(configuration.resources));
+			} else if (options.isResetViewBeforeLoading()) {
+				imageAware.setImageDrawable(null);
+			}
+
+			ImageLoadingInfo imageLoadingInfo = new ImageLoadingInfo(uri, imageAware, targetSize, memoryCacheKey,
+					options, listener, progressListener, engine.getLockForUri(uri));
+			LoadAndDisplayImageFromExistingMP3FileTask displayTask = new LoadAndDisplayImageFromExistingMP3FileTask(engine, imageLoadingInfo,
+					defineHandler(options));
+			if (options.isSyncLoading()) {
+				displayTask.run();
+			} else {
+				engine.submit(displayTask);
+			}
+		}
+	}
 
 	/**
 	 * Adds display image task to execution pool. Image will be set to ImageView when it's turn. <br/>
@@ -371,13 +440,38 @@ public class ImageLoader {
 		displayImage(uri, new ImageViewAware(imageView), options, null, null);
 	}
 	
-	public void displayImage(String uri, ImageView imageView, DisplayImageOptions options, boolean isUriSearchRequest) {
-		if (isUriSearchRequest)
-			displayImageFromSearchRequest(uri, new ImageViewAware(imageView), options, null, null);
-		else
-			displayImage(uri, new ImageViewAware(imageView), options, null, null);
+	/**
+	 * Adds display image task to execution pool. Image will be set to ImageView when it's turn.<br />
+	 * <b>NOTE:</b> {@link #init(ImageLoaderConfiguration)} method must be called before this method call
+	 *
+	 * @param uri       Image URI (i.e. "http://site.com/image.png", "file:///mnt/sdcard/image.png")
+	 * @param imageView {@link ImageView} which should display image
+	 * @param options   {@linkplain com.nostra13.universalimageloader.core.DisplayImageOptions Options} for image
+	 *                  decoding and displaying. If <b>null</b> - default display image options
+	 *                  {@linkplain ImageLoaderConfiguration.Builder#defaultDisplayImageOptions(DisplayImageOptions)
+	 *                  from configuration} will be used.
+	 * @param uriType	{@value} for uriType, 0 is standart (use other method for this), 1 uri is search request on google, 2 uri is
+	 * 					path for file on storage(only mp3 files supported)
+	 * @throws IllegalStateException    if {@link #init(ImageLoaderConfiguration)} method wasn't called before
+	 * @throws IllegalArgumentException if passed <b>imageView</b> is null
+	 */
+	public void displayImage(String uri, ImageView imageView, DisplayImageOptions options, int uriType) {
+		switch (uriType){
+			case 0:
+				//standart
+				displayImage(uri, new ImageViewAware(imageView), options, null, null);
+				break;
+			case 1:
+				//show image from google
+				displayImageFromSearchRequest(uri, new ImageViewAware(imageView), options, null, null);
+				break;
+			case 2: 
+				//show image from mp3 file
+				displayImageFromExistingMP3File(uri, new ImageViewAware(imageView), options, null, null);
+				break;
+		}
 	}
-
+	
 	/**
 	 * Adds display image task to execution pool. Image will be set to ImageView when it's turn.<br />
 	 * Default {@linkplain DisplayImageOptions display image options} from {@linkplain ImageLoaderConfiguration

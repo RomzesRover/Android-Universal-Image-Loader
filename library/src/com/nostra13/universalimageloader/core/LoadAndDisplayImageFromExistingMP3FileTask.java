@@ -15,19 +15,18 @@
  *******************************************************************************/
 package com.nostra13.universalimageloader.core;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URLDecoder;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.jsoup.Jsoup;
-
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.Handler;
-import android.util.Log;
 
+import com.mpatric.mp3agic.Mp3File;
 import com.nostra13.universalimageloader.core.assist.FailReason;
 import com.nostra13.universalimageloader.core.assist.FailReason.FailType;
 import com.nostra13.universalimageloader.core.assist.ImageScaleType;
@@ -53,7 +52,7 @@ import com.nostra13.universalimageloader.utils.L;
  * @see ImageLoadingInfo
  * @since 1.3.1
  */
-final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtils.CopyListener {
+final class LoadAndDisplayImageFromExistingMP3FileTask implements Runnable, IoUtils.CopyListener {
 
 	private static final String LOG_WAITING_FOR_RESUME = "ImageLoader is paused. Waiting...  [%s]";
 	private static final String LOG_RESUME_AFTER_PAUSE = ".. Resume loading [%s]";
@@ -102,7 +101,7 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 	// State vars
 	private LoadedFrom loadedFrom = LoadedFrom.NETWORK;
 
-	public LoadAndDisplayImageFromSearchRequestTask(ImageLoaderEngine engine, ImageLoadingInfo imageLoadingInfo, Handler handler) {
+	public LoadAndDisplayImageFromExistingMP3FileTask(ImageLoaderEngine engine, ImageLoadingInfo imageLoadingInfo, Handler handler) {
 		this.engine = engine;
 		this.imageLoadingInfo = imageLoadingInfo;
 		this.handler = handler;
@@ -233,17 +232,36 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 				L.d(LOG_LOAD_IMAGE_FROM_NETWORK, memoryCacheKey);
 				loadedFrom = LoadedFrom.NETWORK;
 				
-				String imageUriForDecoding = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get().getElementsByClass("rg_di").first().select("a").attr("href");
-				imageUriForDecoding = imageUriForDecoding.substring(imageUriForDecoding.indexOf("=")+1, imageUriForDecoding.indexOf("&"));
+				Mp3File mp3File = new Mp3File(uri);
 				
-				imageUriForDecoding = URLDecoder.decode(URLDecoder.decode(URLDecoder.decode(imageUriForDecoding, "UTF-8")));
-				if (options.isCacheOnDisk() && tryCacheImageOnDisk(imageUriForDecoding)) {
-					imageFile = configuration.diskCache.get(uri);
-					if (imageFile != null) {
-						imageUriForDecoding = Scheme.FILE.wrap(imageFile.getAbsolutePath());
+				String imageUriForDecoding="";
+				
+				if (mp3File.hasId3v2Tag() && mp3File.getId3v2Tag().getAlbumImage()!=null){
+					if (options.isCacheOnDisk() && tryCacheImageOnDisk(mp3File.getId3v2Tag().getAlbumImage())) {
+						imageFile = configuration.diskCache.get(uri);
+						if (imageFile != null) {
+							imageUriForDecoding = Scheme.FILE.wrap(imageFile.getAbsolutePath());
+						}
+					} else {
+						L.i("change settings, this method of load images only support enabled cache on disk, Son", "");
+					}
+					
+				} else {
+					Bitmap bmp = ((BitmapDrawable) options.getImageOnLoading(configuration.resources)).getBitmap();
+			        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+			        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
+					byte[] byteArray = stream.toByteArray();
+					
+					if (options.isCacheOnDisk() && tryCacheImageOnDisk(byteArray)) {
+						imageFile = configuration.diskCache.get(uri);
+						if (imageFile != null) {
+							imageUriForDecoding = Scheme.FILE.wrap(imageFile.getAbsolutePath());
+						}
+					} else {
+						L.i("change settings, this method of load images only support enabled cache on disk, Son", "");
 					}
 				}
-
+				
 				checkTaskNotActual();
 				bitmap = decodeImage(imageUriForDecoding);
 
@@ -276,12 +294,12 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 	}
 
 	/** @return <b>true</b> - if image was downloaded successfully; <b>false</b> - otherwise */
-	private boolean tryCacheImageOnDisk(String realUri) throws TaskCancelledException {
+	private boolean tryCacheImageOnDisk(byte[] byteArray) throws TaskCancelledException {
 		L.d(LOG_CACHE_IMAGE_ON_DISK, memoryCacheKey);
 
 		boolean loaded;
 		try {
-			loaded = downloadImage(realUri);
+			loaded = downloadImage(byteArray);
 			if (loaded) {
 				int width = configuration.maxImageWidthForDiskCache;
 				int height = configuration.maxImageHeightForDiskCache;
@@ -297,9 +315,11 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 		return loaded;
 	}
 
-	private boolean downloadImage(String realUri) throws IOException {
-		InputStream is = getDownloader().getStream(realUri, options.getExtraForDownloader());
-		return configuration.diskCache.save(uri, is, this);
+	private boolean downloadImage(byte[] byteArray) throws IOException {
+		Bitmap bmp;
+		bmp = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.length);
+		Bitmap mutableBitmap = bmp.copy(Bitmap.Config.ARGB_8888, true);
+		return configuration.diskCache.save(uri, mutableBitmap);
 	}
 
 	/** Decodes image file into Bitmap, resize it and save it back */

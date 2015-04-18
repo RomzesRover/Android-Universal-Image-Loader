@@ -96,6 +96,22 @@ class ImageLoaderEngine {
 			}
 		});
 	}
+	
+	void submit(final LoadAndDisplayImageFromExistingMP3FileTask task) {
+		taskDistributor.execute(new Runnable() {
+			@Override
+			public void run() {
+				File image = configuration.diskCache.get(task.getLoadingUri());
+				boolean isImageCachedOnDisk = image != null && image.exists();
+				initExecutorsIfNeed();
+				if (isImageCachedOnDisk) {
+					taskExecutorForCachedImages.execute(task);
+				} else {
+					taskExecutor.execute(task);
+				}
+			}
+		});
+	}
 
 	/** Submits task to execution pool */
 	void submit(ProcessAndDisplayImageTask task) {

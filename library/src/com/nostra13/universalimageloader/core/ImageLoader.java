@@ -455,19 +455,19 @@ public class ImageLoader {
 	 * @throws IllegalStateException    if {@link #init(ImageLoaderConfiguration)} method wasn't called before
 	 * @throws IllegalArgumentException if passed <b>imageView</b> is null
 	 */
-	public void displayImage(String uri, ImageView imageView, DisplayImageOptions options, int uriType) {
+	public void displayImage(String uri, ImageView imageView, DisplayImageOptions options, int uriType, ImageLoadingListener listener) {
 		switch (uriType){
 			case 0:
 				//standart
-				displayImage(uri, new ImageViewAware(imageView), options, null, null);
+				displayImage(uri, new ImageViewAware(imageView), options, listener, null);
 				break;
 			case 1:
 				//show image from google
-				displayImageFromSearchRequest(uri, new ImageViewAware(imageView), options, null, null);
+				displayImageFromSearchRequest(uri, new ImageViewAware(imageView), options, listener, null);
 				break;
 			case 2: 
 				//show image from mp3 file
-				displayImageFromExistingMP3File(uri, new ImageViewAware(imageView), options, null, null);
+				displayImageFromExistingMP3File(uri, new ImageViewAware(imageView), options, listener, null);
 				break;
 		}
 	}

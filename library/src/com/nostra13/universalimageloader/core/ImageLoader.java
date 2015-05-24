@@ -618,6 +618,10 @@ public class ImageLoader {
 		loadImageFromSearchRequest(uri, targetImageSize, options, listener, null);
 	}
 	
+	public void loadImageFromExistingMP3File(String uri, ImageSize targetImageSize, DisplayImageOptions options,
+			ImageLoadingListener listener) {
+		loadImageFromExistingMP3File(uri, targetImageSize, options, listener, null);
+	}
 
 	/**
 	 * Adds load image task to execution pool. Image will be returned with
@@ -671,6 +675,20 @@ public class ImageLoader {
 		NonViewAware imageAware = new NonViewAware(uri, targetImageSize, ViewScaleType.CROP);
 		displayImageFromSearchRequest(uri, imageAware, options, listener, progressListener);
 	}
+	
+	public void loadImageFromExistingMP3File(String uri, ImageSize targetImageSize, DisplayImageOptions options,
+			ImageLoadingListener listener, ImageLoadingProgressListener progressListener) {
+		checkConfiguration();
+		if (targetImageSize == null) {
+			targetImageSize = configuration.getMaxImageSize();
+		}
+		if (options == null) {
+			options = configuration.defaultDisplayImageOptions;
+		}
+
+		NonViewAware imageAware = new NonViewAware(uri, targetImageSize, ViewScaleType.CROP);
+		displayImageFromExistingMP3File(uri, imageAware, options, listener, progressListener);
+	}
 
 	/**
 	 * Loads and decodes image synchronously.<br />
@@ -680,6 +698,8 @@ public class ImageLoader {
 	 * <b>NOTE:</b> {@link #init(ImageLoaderConfiguration)} method must be called before this method call
 	 *
 	 * @param uri Image URI (i.e. "http://site.com/image.png", "file:///mnt/sdcard/image.png")
+	 * @param uriType	{@value} for uriType, 0 is standart (use other method for this), 1 uri is search request on google, 2 uri is
+	 * 					path for file on storage(only mp3 files supported)
 	 * @return Result image Bitmap. Can be <b>null</b> if image loading/decoding was failed or cancelled.
 	 * @throws IllegalStateException if {@link #init(ImageLoaderConfiguration)} method wasn't called before
 	 */
@@ -687,11 +707,19 @@ public class ImageLoader {
 		return loadImageSync(uri, null, null);
 	}
 	
-	public Bitmap loadImageSync(String uri, boolean isSearchRequest) {
-		if (isSearchRequest)
-			return loadImageSyncFromSearchRequest(uri, null, null);
-		else 
+	public Bitmap loadImageSync(String uri, int uriType) {
+		switch (uriType){
+		case 0:
+			//standart
 			return loadImageSync(uri, null, null);
+		case 1:
+			//show image from google
+			return loadImageSyncFromSearchRequest(uri, null, null);
+		case 2: 
+			//show image from mp3 file
+		    return loadImageSyncFromExistingMP3File(uri, null, null);
+		}
+		return null;
 	}
 
 	/**
@@ -703,6 +731,8 @@ public class ImageLoader {
 	 *                decoding and scaling. If <b>null</b> - default display image options
 	 *                {@linkplain ImageLoaderConfiguration.Builder#defaultDisplayImageOptions(DisplayImageOptions) from
 	 *                configuration} will be used.
+	 * @param uriType	{@value} for uriType, 0 is standart (use other method for this), 1 uri is search request on google, 2 uri is
+	 * 					path for file on storage(only mp3 files supported)
 	 * @return Result image Bitmap. Can be <b>null</b> if image loading/decoding was failed or cancelled.
 	 * @throws IllegalStateException if {@link #init(ImageLoaderConfiguration)} method wasn't called before
 	 */
@@ -710,11 +740,19 @@ public class ImageLoader {
 		return loadImageSync(uri, null, options);
 	}
 	
-	public Bitmap loadImageSync(String uri, DisplayImageOptions options, boolean isSearchRequest) {
-		if (isSearchRequest)
-			return loadImageSyncFromSearchRequest(uri, null, options);
-		else 
+	public Bitmap loadImageSync(String uri, DisplayImageOptions options, int uriType) {
+		switch (uriType){
+		case 0:
+			//standart
 			return loadImageSync(uri, null, options);
+		case 1:
+			//show image from google
+			return loadImageSyncFromSearchRequest(uri, null, options);
+		case 2: 
+			//show image from mp3 file
+			return loadImageSyncFromExistingMP3File(uri, null, options);
+		}
+		return null;
 	}
 
 	/**
@@ -769,6 +807,17 @@ public class ImageLoader {
 
 		SyncImageLoadingListener listener = new SyncImageLoadingListener();
 		loadImageFromSearchRequest(uri, targetImageSize, options, listener);
+		return listener.getLoadedBitmap();
+	}
+	
+	public Bitmap loadImageSyncFromExistingMP3File(String uri, ImageSize targetImageSize, DisplayImageOptions options) {
+		if (options == null) {
+			options = configuration.defaultDisplayImageOptions;
+		}
+		options = new DisplayImageOptions.Builder().cloneFrom(options).syncLoading(true).build();
+
+		SyncImageLoadingListener listener = new SyncImageLoadingListener();
+		loadImageFromExistingMP3File(uri, targetImageSize, options, listener);
 		return listener.getLoadedBitmap();
 	}
 

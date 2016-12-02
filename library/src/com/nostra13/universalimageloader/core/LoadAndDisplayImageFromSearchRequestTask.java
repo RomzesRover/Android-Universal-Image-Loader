@@ -22,11 +22,12 @@ import java.net.URLDecoder;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.jsoup.Jsoup;
 
 import android.graphics.Bitmap;
 import android.os.Handler;
-import android.util.Log;
 
 import com.nostra13.universalimageloader.core.assist.FailReason;
 import com.nostra13.universalimageloader.core.assist.FailReason.FailType;
@@ -77,7 +78,7 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 	private static final String ERROR_POST_PROCESSOR_NULL = "Post-processor returned null [%s]";
 	private static final String ERROR_PROCESSOR_FOR_DISK_CACHE_NULL = "Bitmap processor for disk cache returned null [%s]";
 	
-	private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.60 Safari/537.17";
+	private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 4.4.2; Nexus 5 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.86 Mobile Safari/537.36";
 	private static final int USER_TIMEOUT = 10000;
 
 	private final ImageLoaderEngine engine;
@@ -140,7 +141,17 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 
 			bmp = configuration.memoryCache.get(memoryCacheKey);
 			if (bmp == null || bmp.isRecycled()) {
-				bmp = tryLoadBitmap();
+				bmp = tryLoadBitmap(0);
+				if (bmp == null) 
+					bmp = tryLoadBitmap(1); 
+				if (bmp == null) 
+					bmp = tryLoadBitmap(2);
+				if (bmp == null) 
+					bmp = tryLoadBitmap(3);
+				if (bmp == null) 
+					bmp = tryLoadBitmap(4);
+				if (bmp == null) 
+					bmp = tryLoadBitmap(5);
 				if (bmp == null) return; // listener callback already was fired
 
 				checkTaskNotActual();
@@ -218,7 +229,7 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 		return false;
 	}
 
-	private Bitmap tryLoadBitmap() throws TaskCancelledException {
+	private Bitmap tryLoadBitmap(int tr) throws TaskCancelledException {
 		Bitmap bitmap = null;
 		try {
 			File imageFile = configuration.diskCache.get(uri);
@@ -233,10 +244,15 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 				L.d(LOG_LOAD_IMAGE_FROM_NETWORK, memoryCacheKey);
 				loadedFrom = LoadedFrom.NETWORK;
 				
-				String imageUriForDecoding = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get().getElementsByClass("rg_di").first().select("a").attr("href");
-				imageUriForDecoding = imageUriForDecoding.substring(imageUriForDecoding.indexOf("=")+1, imageUriForDecoding.indexOf("&"));
+				String imageUriForDecoding = Jsoup.connect(uri).userAgent(USER_AGENT).timeout(USER_TIMEOUT).get().getElementsByClass("rg_meta").get(tr).html();
 				
+				JSONParser parser = new JSONParser();
+				Object obj = parser.parse(imageUriForDecoding);
+				JSONObject jsonObj = (JSONObject) obj;
+				
+				imageUriForDecoding =  jsonObj.get("ou").toString();
 				imageUriForDecoding = URLDecoder.decode(URLDecoder.decode(URLDecoder.decode(imageUriForDecoding, "UTF-8")));
+				
 				if (options.isCacheOnDisk() && tryCacheImageOnDisk(imageUriForDecoding)) {
 					imageFile = configuration.diskCache.get(uri);
 					if (imageFile != null) {
@@ -246,7 +262,7 @@ final class LoadAndDisplayImageFromSearchRequestTask implements Runnable, IoUtil
 
 				checkTaskNotActual();
 				bitmap = decodeImage(imageUriForDecoding);
-
+				
 				if (bitmap == null || bitmap.getWidth() <= 0 || bitmap.getHeight() <= 0) {
 					fireFailEvent(FailType.DECODING_ERROR, null);
 				}
